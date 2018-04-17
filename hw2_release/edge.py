@@ -219,7 +219,7 @@ def get_neighbors(y, x, H, W):
         H, W: size of the image
     Returns:
         neighbors: list of indices of neighboring pixels [(i, j)]
-    """
+    """ 
     neighbors = []
 
     for i in (y-1, y, y+1):
