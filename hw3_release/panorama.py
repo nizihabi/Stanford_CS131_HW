@@ -34,7 +34,20 @@ def harris_corners(img, window_size=3, k=0.04):
     dy = filters.sobel_h(img)
 
     ### YOUR CODE HERE
-    pass
+    ###gen gaussian kernel
+    center = (window_size - 1)//2
+    for i in range(0,window_size):
+        for j in range(0,window_size):
+            expF = - ( (i - center)**2 + (j - center)**2 ) / (2.0 * 1**2 )  
+            window[i,j] = 1.0 / (2.0 * np.pi * 1**2 )* np.exp(expF)
+    
+    dx2 = convolve(dx*dx,window)
+    dy2 = convolve(dy*dy,window)
+    dxy = convolve(dx*dy,window)
+    
+    detM = dx2 * dy2 - dxy**2
+    tranM = dx2 + dy2
+    response = detM - k * tranM ** 2
     ### END YOUR CODE
 
     return response
