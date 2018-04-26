@@ -34,13 +34,14 @@ def harris_corners(img, window_size=3, k=0.04):
     dy = filters.sobel_h(img)
 
     ### YOUR CODE HERE
+    '''
     ###gen gaussian kernel
     center = (window_size - 1)//2
     for i in range(0,window_size):
         for j in range(0,window_size):
             expF = - ( (i - center)**2 + (j - center)**2 ) / (2.0 * 1**2 )  
             window[i,j] = 1.0 / (2.0 * np.pi * 1**2 )* np.exp(expF)
-    
+    '''
     dx2 = convolve(dx*dx,window)
     dy2 = convolve(dy*dy,window)
     dxy = convolve(dx*dy,window)
@@ -73,7 +74,8 @@ def simple_descriptor(patch):
     """
     feature = []
     ### YOUR CODE HERE
-    pass
+    normalize = (patch - np.mean(patch)) / np.std(patch) if np.std(patch) != 0 else (patch - np.mean(patch))
+    feature = normalize.flatten()
     ### END YOUR CODE
     return feature
 
@@ -118,12 +120,15 @@ def match_descriptors(desc1, desc2, threshold=0.5):
         of matching descriptors
     """
     matches = []
-    
-    N = desc1.shape[0]
     dists = cdist(desc1, desc2)
 
     ### YOUR CODE HERE
-    pass
+    for i,Di in enumerate(dists):
+        matchj = np.argmin(Di)
+        sortedDist = np.sort(Di)
+        if sortedDist[0] / sortedDist[1] < threshold:
+            matches.append( (i,matchj) )
+    matches = np.array(matches)
     ### END YOUR CODE
     
     return matches
@@ -149,12 +154,14 @@ def fit_affine_matrix(p1, p2):
     p2 = pad(p2)
 
     ### YOUR CODE HERE
-    pass
+    H = np.linalg.lstsq(p2,p1)[0]
+   
     ### END YOUR CODE
 
     # Sometimes numerical issues cause least-squares to produce the last
     # column which is not exactly [0, 0, 1]
     H[:,2] = np.array([0, 0, 1])
+     
     return H
 
 
@@ -186,12 +193,34 @@ def ransac(keypoints1, keypoints2, matches, n_iters=200, threshold=20):
     matched1 = pad(keypoints1[matches[:,0]])
     matched2 = pad(keypoints2[matches[:,1]])
 
-    max_inliers = np.zeros(N)
+    max_inliers = np.zeros(N, dtype=bool)
     n_inliers = 0
-
+      
     # RANSAC iteration start
     ### YOUR CODE HERE
-    pass
+    allIdxs = np.arange(N)
+    for iterTime in range(n_iters): 
+        np.random.shuffle(allIdxs)
+        sampleIdxs = allIdxs[0:n_samples]
+        outIdxs = allIdxs[n_samples:]
+        sample_p1s = matched1[sampleIdxs]
+        sample_p2s = matched2[sampleIdxs]
+        out_p1s = matched1[outIdxs]
+        out_p2s = matched2[outIdxs]
+        tempH = np.linalg.lstsq(sample_p2s,sample_p1s)[0]
+        tempH[:,2] = np.array([0, 0, 1])
+        errors = np.sum( (np.dot(out_p2s,tempH) - out_p1s)**2 ,axis = 1)
+        otherInliers = outIdxs[errors < threshold]
+        totalInliers = len(otherInliers) + n_samples
+        if totalInliers > n_inliers:
+            max_inliers[:] = False
+            n_inliers = totalInliers
+            recomputeIdxs = np.concatenate( (sampleIdxs,otherInliers) )
+            max_inliers[recomputeIdxs] = True
+            recompute_p1s = matched1[recomputeIdxs]
+            recompute_p2s = matched2[recomputeIdxs]
+            H = np.linalg.lstsq(recompute_p2s,recompute_p1s)[0]
+            H[:,2] = np.array([0, 0, 1])
     ### END YOUR CODE
     return H, matches[max_inliers]
 
@@ -231,12 +260,22 @@ def hog_descriptor(patch, pixels_per_cell=(8,8)):
     theta_cells = view_as_blocks(theta, block_shape=pixels_per_cell)
     rows = G_cells.shape[0]
     cols = G_cells.shape[1]
-
+    
     cells = np.zeros((rows, cols, n_bins))
-
+   
+    block = []
     # Compute histogram per cell
     ### YOUR CODE HERE
-    pass
+    for ci in range(rows):
+        for cj in range(cols):
+            cell = G_cells[ci,cj]
+            cellTheta = theta_cells[ci,cj]
+            for pi in range(cell.shape[0]):
+                for pj in range(cell.shape[1]):
+                    tbin = (cellTheta[pi,pj] // degrees_per_bin) % n_bins
+                    cells[ci,cj,int(tbin)] += cell[pi,pj]
+            cells[ci,cj,:] = cells[ci,cj,:] / np.sum(cells[ci,cj,:])
+    block = cells.flatten()
     ### YOUR CODE HERE
     
     return block
