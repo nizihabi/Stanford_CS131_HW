@@ -32,7 +32,7 @@ def harris_corners(img, window_size=3, k=0.04):
 
     dx = filters.sobel_v(img)
     dy = filters.sobel_h(img)
-
+    
     ### YOUR CODE HERE
     '''
     ###gen gaussian kernel

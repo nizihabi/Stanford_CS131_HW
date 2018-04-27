@@ -20,7 +20,9 @@ def energy_function(image):
     out = np.zeros((H, W))
 
     ### YOUR CODE HERE
-    pass
+    gray = color.rgb2gray(image)
+    dy,dx = np.gradient(gray)
+    out = np.abs(dx) + np.abs(dy)
     ### END YOUR CODE
 
     return out
@@ -62,7 +64,16 @@ def compute_cost(image, energy, axis=1):
     paths[0] = 0  # we don't care about the first row of paths
 
     ### YOUR CODE HERE
-    pass
+    for i in range(1,H):
+        for j in range(W):
+            if j - 1 >= 0 and j + 1 < W:
+                paths[i,j] = np.argmin(cost[i-1,j-1:j+2]) - 1
+            elif j - 1 < 0:
+                paths[i,j] = np.argmin(cost[i-1,j:j+2])  
+            elif j + 1 >= W:
+                paths[i,j] = np.argmin(cost[i-1,j-1:j+1]) - 1 
+
+            cost[i,j] =  cost[i-1,j + paths[i,j] ] + energy[i,j]    
     ### END YOUR CODE
 
     if axis == 0:
@@ -99,7 +110,8 @@ def backtrack_seam(paths, end):
     seam[H-1] = end
 
     ### YOUR CODE HERE
-    pass
+    for i in range(H-2,-1,-1):
+        seam[i] = seam[i+1] + paths[i+1 , seam[i+1] ]
     ### END YOUR CODE
 
     # Check that seam only contains values in [0, W-1]
@@ -125,10 +137,13 @@ def remove_seam(image, seam):
     if len(image.shape) == 2:
         image = np.expand_dims(image, axis=2)
 
-    out = None
+    
     H, W, C = image.shape
+    out = np.zeros((H,W-1,C))
     ### YOUR CODE HERE
-    pass
+    for i in range(H):
+        out[i,:seam[i]] = image[i,:seam[i]]
+        out[i,seam[i]:] = image[i,seam[i]+1:]
     ### END YOUR CODE
     out = np.squeeze(out)  # remove last dimension if C == 1
 
@@ -169,7 +184,13 @@ def reduce(image, size, axis=1, efunc=energy_function, cfunc=compute_cost):
     assert size > 0, "Size must be greater than zero"
 
     ### YOUR CODE HERE
-    pass
+    while W > size:
+        energy = efunc(out)
+        vcost,vpath = cfunc(out,energy)
+        end = np.argmin(vcost[-1])
+        seam = backtrack_seam(vpath,end)
+        out = remove_seam(out,seam)
+        W = out.shape[1]
     ### END YOUR CODE
 
     assert out.shape[1] == size, "Output doesn't have the right shape"
