@@ -64,16 +64,59 @@ def compute_cost(image, energy, axis=1):
     paths[0] = 0  # we don't care about the first row of paths
 
     ### YOUR CODE HERE
+    '''
+    #slow .....
+    base = np.array(range(W),dtype=np.int)
     for i in range(1,H):
-        for j in range(W):
-            if j - 1 >= 0 and j + 1 < W:
-                paths[i,j] = np.argmin(cost[i-1,j-1:j+2]) - 1
-            elif j - 1 < 0:
-                paths[i,j] = np.argmin(cost[i-1,j:j+2])  
-            elif j + 1 >= W:
-                paths[i,j] = np.argmin(cost[i-1,j-1:j+1]) - 1 
+        #process 0 col
+        paths[i,0] = np.argmin(cost[i-1,0:2])
+        #process 1~W-2 cols
+        for j in range(1,W-1):
+            paths[i,j] = np.argmin(cost[i-1,j-1:j+2]) - 1
+        #process W-1 col
+        paths[i,W-1] = np.argmin(cost[i-1,W-2:W]) - 1 
+        #cal cost according to paths
+        cost[i,:] =  cost[i-1 ,base + paths[i,:] ] + energy[i,:]
+    '''
+    
+    #more faster compareless
+    base = np.array(range(W),dtype=np.int)
+    for i in range(1,H):
+        #process 0 col
+        #paths[i,0] = np.argmin(cost[i-1,0:2])
+        historyCompare = [0,0]
+        if cost[i-1,0 ] < cost[i-1,1 ]:
+            historyCompare[0] = 0
+            historyCompare[1] = cost[i-1,0 ]
+            paths[i,0] = 0
+        else:
+            historyCompare[0] = 1
+            historyCompare[1] = cost[i-1,1 ]
+            paths[i,0] = 1
+        #process 1~W-2 cols
+        for j in range(1,W-1):
+            #paths[i,j] = np.argmin(cost[i-1,j-1:j+2]) - 1
+            forward_value = cost[i-1,j+1]
+            if forward_value < historyCompare[1]:
+                paths[i,j] = 1
+                historyCompare=[1,forward_value]
+            else:
+                historyCompare[0] = historyCompare[0] - 1
+                paths[i,j] = historyCompare[0]
+                #min(i-1,j-1)choose , so refresh historyCompare with cost[i-1,j] & cost[i-1,j+1]
+                if historyCompare[0] == -1:
+                    if cost[i-1,j] <= forward_value:
+                        historyCompare[0] = 0
+                        historyCompare[1] = cost[i-1,j]
+                    else:
+                        historyCompare[0] = 1
+                        historyCompare[1] = forward_value
 
-            cost[i,j] =  cost[i-1,j + paths[i,j] ] + energy[i,j]    
+        #process W-1 col
+        paths[i,W-1] = np.argmin(cost[i-1,W-2:W]) - 1 
+        #cal cost according to paths
+        cost[i,:] =  cost[i-1 ,base + paths[i,:] ] + energy[i,:]  
+      
     ### END YOUR CODE
 
     if axis == 0:
@@ -217,7 +260,10 @@ def duplicate_seam(image, seam):
     H, W, C = image.shape
     out = np.zeros((H, W + 1, C))
     ### YOUR CODE HERE
-    pass
+    for i in range(H):
+        out[i,:seam[i]] = image[i,:seam[i]]
+        out[i,seam[i]] = image[i,seam[i]]
+        out[i,seam[i]+1:] = image[i,seam[i]:]
     ### END YOUR CODE
 
     return out
@@ -255,7 +301,13 @@ def enlarge_naive(image, size, axis=1, efunc=energy_function, cfunc=compute_cost
     assert size > W, "size must be greather than %d" % W
 
     ### YOUR CODE HERE
-    pass
+    while W < size:
+        energy = efunc(out)
+        vcost,vpath = cfunc(out,energy)
+        end = np.argmin(vcost[-1])
+        seam = backtrack_seam(vpath,end)
+        out = duplicate_seam(out,seam)
+        W = out.shape[1]
     ### END YOUR CODE
 
     if axis == 0:
@@ -304,8 +356,8 @@ def find_seams(image, k, axis=1, efunc=energy_function, cfunc=compute_cost):
     # We initialize `indices` with an array like (for shape (2, 4)):
     #     [[1, 2, 3, 4],
     #      [1, 2, 3, 4]]
-    indices = np.tile(range(W), (H, 1))  # shape (H, W)
-
+    indices = np.tile( range(W ), (H, 1))  # shape (H, W)
+    
     # We keep track here of the seams removed in our process
     # At the end of the process, seam number i will be stored as the path of value i+1 in `seams`
     # An example output for `seams` for two seams in a (3, 4) image can be:
@@ -324,16 +376,17 @@ def find_seams(image, k, axis=1, efunc=energy_function, cfunc=compute_cost):
 
         # Remove that seam from the image
         image = remove_seam(image, seam)
-
+        
         # Store the new seam with value i+1 in the image
         # We can assert here that we are only writing on zeros (not overwriting existing seams)
         assert np.all(seams[np.arange(H), indices[np.arange(H), seam]] == 0), \
-            "we are overwriting seams"
+           "we are overwriting seams"
         seams[np.arange(H), indices[np.arange(H), seam]] = i + 1
-
+        #for hi in np.arange(H):
+        #   seams[hi,int(indices[hi,seam[hi]])] = i+1
         # We remove the indices used by the seam, so that `indices` keep the same shape as `image`
         indices = remove_seam(indices, seam)
-
+        indices = indices.astype(int) 
     if axis == 0:
         seams = np.transpose(seams, (1, 0))
 
