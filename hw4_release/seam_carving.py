@@ -85,7 +85,7 @@ def compute_cost(image, energy, axis=1):
         #process 0 col
         #paths[i,0] = np.argmin(cost[i-1,0:2])
         historyCompare = [0,0]
-        if cost[i-1,0 ] < cost[i-1,1 ]:
+        if cost[i-1,0 ] <= cost[i-1,1 ]:
             historyCompare[0] = 0
             historyCompare[1] = cost[i-1,0 ]
             paths[i,0] = 0
@@ -105,18 +105,18 @@ def compute_cost(image, energy, axis=1):
                 paths[i,j] = historyCompare[0]
                 #min(i-1,j-1)choose , so refresh historyCompare with cost[i-1,j] & cost[i-1,j+1]
                 if historyCompare[0] == -1:
-                    if cost[i-1,j] <= forward_value:
-                        historyCompare[0] = 0
-                        historyCompare[1] = cost[i-1,j]
+                    if cost[i-1,j] < forward_value:
+                        historyCompare =[0, cost[i-1,j]]
                     else:
-                        historyCompare[0] = 1
-                        historyCompare[1] = forward_value
+                        historyCompare =[1,forward_value]
+                
 
         #process W-1 col
         paths[i,W-1] = np.argmin(cost[i-1,W-2:W]) - 1 
+        #paths[i,W-1] = historyCompare[0] - 1
         #cal cost according to paths
         cost[i,:] =  cost[i-1 ,base + paths[i,:] ] + energy[i,:]  
-      
+    
     ### END YOUR CODE
 
     if axis == 0:
@@ -373,7 +373,7 @@ def find_seams(image, k, axis=1, efunc=energy_function, cfunc=compute_cost):
         cost, paths = cfunc(image, energy)
         end = np.argmin(cost[H - 1])
         seam = backtrack_seam(paths, end)
-
+        
         # Remove that seam from the image
         image = remove_seam(image, seam)
         
@@ -385,8 +385,10 @@ def find_seams(image, k, axis=1, efunc=energy_function, cfunc=compute_cost):
         #for hi in np.arange(H):
         #   seams[hi,int(indices[hi,seam[hi]])] = i+1
         # We remove the indices used by the seam, so that `indices` keep the same shape as `image`
+        
         indices = remove_seam(indices, seam)
         indices = indices.astype(int) 
+        
     if axis == 0:
         seams = np.transpose(seams, (1, 0))
 
@@ -413,7 +415,7 @@ def enlarge(image, size, axis=1, efunc=energy_function, cfunc=compute_cost):
     Returns:
         out: numpy array of shape (size, W, C) if axis=0, or (H, size, C) if axis=1
     """
-
+    
     out = np.copy(image)
     # Transpose for height resizing
     if axis == 0:
@@ -426,7 +428,21 @@ def enlarge(image, size, axis=1, efunc=energy_function, cfunc=compute_cost):
     assert size <= 2 * W, "size must be smaller than %d" % (2 * W)
 
     ### YOUR CODE HERE
-    pass
+    K = size - W 
+    seams = find_seams(out,K,axis=1, efunc=energy_function, cfunc=compute_cost) 
+    kseams = np.zeros((H,K),dtype=np.int)
+ 
+    #find out all seam
+    
+    for i in range(H):
+        kseams[i ]= np.array(np.where(seams[i]!=0))
+              
+    kseams = kseams.T
+    for i in range(K):
+        seam = kseams[i] + i
+        out = duplicate_seam(out,seam)
+
+
     ### END YOUR CODE
 
     if axis == 0:
@@ -468,7 +484,35 @@ def compute_forward_cost(image, energy):
     paths[0] = 0  # we don't care about the first row of paths
 
     ### YOUR CODE HERE
-    pass
+    #slow method
+    for i in range(1,H):
+        for j in range(W):
+            if j == 0:
+                #process 0 col
+                cr = cost[i-1,j+1] + np.abs(image[i-1 ,j] - image[i,j+1])  
+                cu = cost[i-1,j]       
+                minIndex = np.argmin( (cu,cr) )
+                cost[i,j] = (cu,cr)[minIndex] + energy[i,j]
+                paths[i,j] = minIndex
+            elif j == W-1:
+                #process W-1 col
+                cl = cost[i-1,j-1] + np.abs(image[i-1,j] - image[i,j-1])  
+                cu = cost[i-1,j]   
+                minIndex = np.argmin( (cl,cu) )  
+                cost[i,j] = (cl,cu)[minIndex] + energy[i,j]
+                paths[i,j] = minIndex - 1
+            else:
+                #process 1~W-2 cols
+                cl = cost[i-1,j-1] + np.abs(image[i ,j+1] - image[i ,j-1]) + np.abs(image[i-1,j] - image[i,j-1])  
+                cu = cost[i-1,j] + np.abs(image[i ,j+1] - image[i ,j-1]) 
+                cr = cost[i-1,j+1] + np.abs(image[i ,j+1] - image[i ,j-1]) + np.abs(image[i-1,j] - image[i,j+1])  
+                minIndex = np.argmin( (cl,cu,cr) )  
+                cost[i,j] = (cl,cu,cr)[minIndex] + energy[i,j]
+                paths[i,j] = minIndex - 1
+         
+        #cal cost according to paths
+        #cost[i,:] =  cost[i-1 ,base + paths[i,:] ] + energy[i,:]
+    
     ### END YOUR CODE
 
     # Check that paths only contains -1, 0 or 1
@@ -509,7 +553,29 @@ def reduce_fast(image, size, axis=1, efunc=energy_function, cfunc=compute_cost):
     assert size > 0, "Size must be greater than zero"
 
     ### YOUR CODE HERE
-    pass
+    energy = efunc(out)
+    vcost,vpath = cfunc(out,energy)
+    while W > size:
+        end = np.argmin(vcost[-1])
+        seam = backtrack_seam(vpath,end)
+        out = remove_seam(out,seam)
+        W = out.shape[1]
+
+        energy = remove_seam(energy,seam)
+        vcost = remove_seam(vcost,seam)
+        vpath = remove_seam(vpath,seam)
+        
+        partial_start = end - 2 if end - 2 >= 0 else 0
+        partial_end = end + 1 if end + 1 < W else W-1
+       
+        img_p = out[:,partial_start:partial_end+1]
+        energy_p = efunc(img_p)
+        vcost_p,vpath_p = cfunc(img_p,energy_p)
+
+        energy[:,partial_start:partial_end+1] = energy_p
+        vcost[:,partial_start:partial_end+1] = vcost_p
+        vpath[:,partial_start:partial_end+1] = vpath_p
+        
     ### END YOUR CODE
 
     assert out.shape[1] == size, "Output doesn't have the right shape"
