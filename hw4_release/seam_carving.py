@@ -182,7 +182,7 @@ def remove_seam(image, seam):
 
     
     H, W, C = image.shape
-    out = np.zeros((H,W-1,C))
+    out = np.zeros((H,W-1,C),dtype = image.dtype)
     ### YOUR CODE HERE
     for i in range(H):
         out[i,:seam[i]] = image[i,:seam[i]]
@@ -599,9 +599,23 @@ def remove_object(image, mask):
         out: numpy array of shape (H, W, 3)
     """
     out = np.copy(image)
-
+    H,W,_ = out.shape
     ### YOUR CODE HERE
-    pass
+    k = 0
+    for i in range(W):
+        if mask[:,i].any() :
+            k +=1
+    
+    for i in range(k):
+        energy = energy_function(out)
+        energy[mask] *= -1000
+        vcost,vpath = compute_cost(out,energy)
+        end = np.argmin(vcost[-1])
+        seam = backtrack_seam(vpath,end)
+        out = remove_seam(out,seam)
+        mask = remove_seam(mask,seam)  
+    out = enlarge(out,W)
+
     ### END YOUR CODE
 
     return out
