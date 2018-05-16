@@ -36,7 +36,18 @@ def kmeans(features, k, num_iters=100):
 
     for n in range(num_iters):
         ### YOUR CODE HERE
-        pass
+        for j in range(N):
+            mindis = float('inf')
+            minIndex = -1
+            for ci in range(k):
+                dist = np.linalg.norm( features[j] - centers[ci]) 
+                if dist < mindis:
+                    mindis = dist
+                    minIndex = ci
+            assignments[j] = minIndex
+        for cj in range(k): 
+            centers[cj] = np.mean(features[assignments == cj],axis = 0)
+           
         ### END YOUR CODE
 
     return assignments
@@ -72,7 +83,11 @@ def kmeans_fast(features, k, num_iters=100):
 
     for n in range(num_iters):
         ### YOUR CODE HERE
-        pass
+        for j in range(N):
+            dist = np.linalg.norm(features[j] - centers,axis = 1)
+            assignments[j] = np.argmin(dist)
+        for cj in range(k): 
+            centers[cj] = np.mean(features[assignments == cj],axis = 0)
         ### END YOUR CODE
 
     return assignments
