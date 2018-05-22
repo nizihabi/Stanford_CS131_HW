@@ -93,6 +93,12 @@ def kmeans_fast(features, k, num_iters=100):
     return assignments
 
 
+class Node(object):
+    def __init__(self, center, id = -1, counts = 0, children = None ):
+        self.center = center
+        self.id = id
+        self.counts = counts
+        self.children = children
 
 def hierarchical_clustering(features, k):
     """ Run the hierarchical agglomerative clustering algorithm.
@@ -137,10 +143,46 @@ def hierarchical_clustering(features, k):
     centers = np.copy(features)
     n_clusters = N
 
+    #slow cluster
+    distances = {}
+    clusterID = -1
+    node_list = []
+    for i,ci in enumerate(centers):
+        node_list.append(Node(ci,id=i,counts=1,children=[i]))
+    
     while n_clusters > k:
         ### YOUR CODE HERE
-        pass
+        mindis = float('inf')
+        minpair = None
+        for i in range(n_clusters):
+            for j in range(i+1,n_clusters):
+                key = (node_list[i].id,node_list[j].id)
+                dis = None
+                if key in distances:
+                    dis = distances[key]
+                else:
+                    dis = np.linalg.norm( node_list[i].center - node_list[j].center )
+                    distances[key] = dis
+                if dis < mindis:
+                    mindis = dis
+                    minpair = (i,j)
+
+        cluster_node1, cluster_node2 = minpair
+        
+        node_1 , node_2 = node_list[cluster_node1], node_list[cluster_node2]
+        new_center = ( node_1.center * node_1.counts +  node_2.center * node_2.counts ) / ( node_2.counts + node_1.counts )
+        new_node = Node(new_center,id = clusterID,counts = node_1.counts + node_2.counts , children = node_1.children + node_2.children)
+        
+        del node_list[cluster_node2],node_list[cluster_node1]
+        node_list.append(new_node)
+        n_clusters = len(node_list)
+        clusterID -= 1
         ### END YOUR CODE
+    
+    for i ,node in enumerate(node_list):
+        for j, pj in enumerate(node.children):
+            assignments[pj] = i
+    
 
     return assignments
 
@@ -160,7 +202,9 @@ def color_features(img):
     features = np.zeros((H*W, C))
 
     ### YOUR CODE HERE
-    pass
+    for i in range(H):
+        for j in range(W):
+            features[i*W + j] = img[i][j]
     ### END YOUR CODE
 
     return features
