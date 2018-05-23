@@ -32,7 +32,7 @@ def kmeans(features, k, num_iters=100):
     # Randomly initalize cluster centers
     idxs = np.random.choice(N, size=k, replace=False)
     centers = features[idxs]
-    assignments = np.zeros(N)
+    assignments = np.zeros(N,dtype=int)
 
     for n in range(num_iters):
         ### YOUR CODE HERE
@@ -79,7 +79,7 @@ def kmeans_fast(features, k, num_iters=100):
     # Randomly initalize cluster centers
     idxs = np.random.choice(N, size=k, replace=False)
     centers = features[idxs]
-    assignments = np.zeros(N)
+    assignments = np.zeros(N,dtype=int)
 
     for n in range(num_iters):
         ### YOUR CODE HERE
@@ -139,7 +139,7 @@ def hierarchical_clustering(features, k):
     assert N >= k, 'Number of clusters cannot be greater than number of points'
 
     # Assign each point to its own cluster
-    assignments = np.arange(N)
+    assignments = np.arange(N,dtype=int)
     centers = np.copy(features)
     n_clusters = N
 
@@ -202,9 +202,10 @@ def color_features(img):
     features = np.zeros((H*W, C))
 
     ### YOUR CODE HERE
-    for i in range(H):
-        for j in range(W):
-            features[i*W + j] = img[i][j]
+    #for i in range(H):
+    #    for j in range(W):
+    #        features[i*W + j] = img[i][j]
+    features = img.reshape( (H*W,C) )
     ### END YOUR CODE
 
     return features
@@ -232,7 +233,12 @@ def color_position_features(img):
     features = np.zeros((H*W, C+2))
 
     ### YOUR CODE HERE
-    pass
+    x,y = np.mgrid[0:H,0:W]
+    position = np.dstack( (x,y) )
+    position = (position - np.min(position)) / (np.max(position) - np.min(position))
+    temp = np.dstack( (color,position) )
+    features = temp.reshape((H*W, C+2))
+    
     ### END YOUR CODE
 
     return features
