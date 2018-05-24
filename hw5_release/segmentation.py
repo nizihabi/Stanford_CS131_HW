@@ -278,7 +278,13 @@ def compute_accuracy(mask_gt, mask):
 
     accuracy = None
     ### YOUR CODE HERE
-    pass
+    H,W = mask_gt.shape
+    TP_M = mask[mask_gt == 1] 
+    TP = TP_M[TP_M == 1].size 
+    TN_M = mask[mask_gt == 0] 
+    TN = TN_M[TN_M == 0].size 
+    
+    accuracy =( TP + TN ) / (H*W)
     ### END YOUR CODE
 
     return accuracy
